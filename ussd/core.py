@@ -341,7 +341,7 @@ class UssdHandlerAbstract(object, metaclass=UssdHandlerMetaClass):
         )
         self.pagination_home_option = self._add_end_line(
             self.get_text(
-                self.pagination_config.get('home_option', "home\n")
+                self.pagination_config.get('home_option', "Home\n")
             )
         )
         self.pagination_back_option = self._add_end_line(
