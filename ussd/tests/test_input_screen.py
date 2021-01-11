@@ -1,18 +1,20 @@
 from ussd.tests import UssdTestCase
+from ussd.core import ussd_session
 
 
 class TestInputHandler(UssdTestCase.BaseUssdTestCase):
+
     validation_error_message = dict(
         enter_height={
             "validators": {
-                0: {'text': ['This field is required.']}
+                'text': ['This field is required.']
+                },
+                "next_screen": ['This field is required.']
             },
-            "next_screen": ['This field is required.']
-        },
         enter_age={
             "input_identifier": ['This field is required.'],
-            "next_screen": ['thank_you_screen is missing in ussd journey'],
-            "options": ['Not a valid list.']
+            "next_screen": {'next_screen': ['thank_you_screen is missing in ussd journey']},
+            "options": ['Expected a list of items but got type "bool".']
         },
         show_information={
             "type": ['Invalid screen type not supported']
@@ -40,7 +42,7 @@ class TestInputHandler(UssdTestCase.BaseUssdTestCase):
 
         # confirm height entered is 5 before going back
         self.assertEqual(
-            self.ussd_session(ussd_client.session_id)["height"],
+            ussd_session(ussd_client.session_id)["height"],
             '5'
         )
 
@@ -54,11 +56,13 @@ class TestInputHandler(UssdTestCase.BaseUssdTestCase):
         self.assertEqual(
             "Your age is 24 and your height is 6.\n"
             "Enter anything to go back to the first screen\n",
-            ussd_client.send('24')  # enter age
+            ussd_client.send('24') # enter age
         )
 
     def test_multilanguage_support(self):
+
         ussd_client = self.ussd_client(language='sw')
+
 
         # Dial in
         response = ussd_client.send('1')
@@ -85,6 +89,7 @@ class TestInputHandler(UssdTestCase.BaseUssdTestCase):
         )
 
     def test_input_validation(self):
+
         ussd_client = self.ussd_client()
 
         # dial in

@@ -12,12 +12,9 @@ class TestQuitHandler(UssdTestCase.BaseUssdTestCase):
     )
 
     def test(self):
-        ussd_client = self.ussd_client()
-        response = ussd_client.send('', raw=True)
+        ussd_client = self.ussd_client(service_code="test_")
 
         self.assertEqual(
-            "Test getting variable from os environmen. variable_test",
-            str(response)
+            "END Test getting variable from os environmen. variable_test",
+            ussd_client.send('')
         )
-
-        self.assertFalse(response.status)

@@ -4,15 +4,18 @@ from ussd.tests import UssdTestCase
 class TestMultiLanguage(UssdTestCase.BaseUssdTestCase):
     validate_ussd = False
 
-    def test_multilanguage_support(self):
-        ussd_client = self.ussd_client(
-            language='sw',
+    def get_ussd_client(self):
+        return self.ussd_client(
             generate_customer_journey=False,
             extra_payload={
-                "journey_name": "sample_journey",
-                "journey_version": "valid_multi_language_support_from_session_data_conf"
+                "customer_journey_conf": "valid_multi_language_support_from_session_data_conf.yml"
             }
         )
+
+    def test_multilanguage_support(self):
+
+        ussd_client = self.ussd_client(language='sw')
+
 
         # Dial in
         response = ussd_client.send('')

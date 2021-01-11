@@ -1,19 +1,17 @@
 from ussd.core import UssdHandlerAbstract
-from ussd.graph import Link, Vertex
-from ussd.screens.schema import UssdBaseScreenSchema, NextUssdScreenSchema, NextUssdScreenField, WithItemSchema
-from marshmallow import fields, Schema
+from ussd.screens.serializers import UssdBaseSerializer, \
+    NextUssdScreenSerializer
+from rest_framework import serializers
 
 
-class RouterOptionSchema(NextUssdScreenSchema):
-    expression = fields.Str(required=True)
+class RouterOptionSerializer(NextUssdScreenSerializer):
+    expression = serializers.CharField(max_length=255)
 
 
-class RouterSchema(UssdBaseScreenSchema, WithItemSchema):
-    router_options = fields.List(
-        fields.Nested(RouterOptionSchema),
-        required=True
+class RouterSerializer(UssdBaseSerializer):
+    router_options = serializers.ListField(
+        child=RouterOptionSerializer()
     )
-    default_next_screen = NextUssdScreenField(required=False)
 
 
 class RouterScreen(UssdHandlerAbstract):
@@ -54,35 +52,9 @@ class RouterScreen(UssdHandlerAbstract):
     """
 
     screen_type = "router_screen"
-    serializer = RouterSchema
+    serializer = RouterSerializer
 
     def handle(self):
         return self.route_options(
             self.screen_content.get("router_options")
         )
-
-    def show_ussd_content(self, **kwargs):
-        return "Routing screen: {}".format(self.handler)
-
-    def get_next_screens(self):
-        links = []
-
-        for obj in self.screen_content['router_options']:
-            links.append(
-                Link(
-                    Vertex(self.handler),
-                    Vertex(obj['next_screen']),
-                    obj['expression']
-                )
-            )
-
-        if self.screen_content.get('default_next_screen'):
-            links.append(
-                Link(
-                    Vertex(self.handler),
-                    Vertex(self.screen_content['default_next_screen']),
-                    'default'
-                )
-            )
-
-        return links

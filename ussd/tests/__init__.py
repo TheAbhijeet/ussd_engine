@@ -1,14 +1,10 @@
-import json
-import os
 import uuid
-
-
-from unittest import TestCase
-from ussd.core import render_journey_as_graph, render_journey_as_mermaid_text, UssdEngine, UssdRequest, UssdResponse
+import requests
+import staticconf
+from django.test import LiveServerTestCase, TestCase
+from django.urls import reverse
+from ussd.core import UssdView, load_yaml
 from ussd.tests.sample_screen_definition import path
-from ussd.store.journey_store.YamlJourneyStore import YamlJourneyStore
-from ussd.session_store import SessionStore
-from simplekv.fs import FilesystemStore
 
 
 class UssdTestCase(object):
@@ -16,153 +12,84 @@ class UssdTestCase(object):
     this contains two test that are required in each screen test case
     """
 
-    class BaseUssdTestCase(TestCase):
+    class BaseUssdTestCase(LiveServerTestCase):
         validate_ussd = True
 
-        session_store = FilesystemStore("./session_data")
-
         def setUp(self):
-            self.journey_store = YamlJourneyStore("/usr/src/app/ussd/tests/sample_screen_definition")
-
-            file_prefix = self.__module__.split('.')[-1].replace('test_', '')
-            self.journey_name = file_prefix
-            journey_version_suffix = file_prefix + "_conf"
-
-            self.valid_version = 'valid_' + journey_version_suffix
-            self.invalid_version = 'invalid_' + journey_version_suffix
-
-            self.mermaid_file = path + file_prefix + '/' + '/' + 'valid_' + file_prefix + '_mermaid.txt'
-            self.graph_file = path + '/' + file_prefix + '/' + 'valid_' + file_prefix + '_graph.json'
+            file_yml = self.__module__.split('.')[-1]. \
+                           replace('test_', '') + '_conf.yml'
+            self.valid_yml = 'valid_' + file_yml
+            self.invalid_yml = 'invalid_' + file_yml
             self.namespace = self.__module__.split('.')[-1]
             self.maxDiff = None
 
             super(UssdTestCase.BaseUssdTestCase, self).setUp()
 
-            #
-
-        def _test_ussd_validation(self, version_to_validate, expected_validation,
+        def _test_ussd_validation(self, yaml_to_validate, expected_validation,
                                   expected_errors):
 
             if self.validate_ussd:
-                ussd_screens = self.journey_store.get(self.journey_name, version_to_validate)
+                namespace = self.namespace + str(expected_validation)
+                file_path = path + '/' + yaml_to_validate
+                load_yaml(file_path, namespace)
+                ussd_screens = staticconf.config. \
+                    get_namespace(namespace). \
+                    get_config_values()
 
-                is_valid, error_message = UssdEngine.validate_ussd_journey(
+                is_valid, error_message = UssdView.validate_ussd_journey(
                     ussd_screens)
 
                 self.assertEqual(is_valid, expected_validation, error_message)
-
-                for key, value in expected_errors.items():
-                    args = (value, error_message[key], key)
-                    if isinstance(value, dict):
-                        self.assertDictEqual(*args)
-                    else:
-                        self.assertEqual(*args)
 
                 self.assertDictEqual(error_message,
                                      expected_errors)
 
         def testing_valid_customer_journey(self):
-            self._test_ussd_validation(self.valid_version, True, {})
+            self._test_ussd_validation(self.valid_yml, True, {})
 
         def testing_invalid_customer_journey(self):
 
-            try:
-                self._test_ussd_validation(self.invalid_version, False,
+            self._test_ussd_validation(self.invalid_yml, False,
                                        getattr(self,
                                                "validation_error_message",
                                                {}))
-            except Exception as e:
-                if not (hasattr(self, "expected_error") and isinstance(e, self.__getattribute__("expected_error"))):
-                    raise e
-
-        def test_rendering_graph_js(self):
-            if os.path.exists(self.graph_file):
-                ussd_screens = self.journey_store.get(self.journey_name, self.valid_version)
-
-                actual_graph_js = render_journey_as_graph(ussd_screens)
-
-                expected_graph_js = json.loads(self.read_file_content(self.graph_file))
-
-                for key, value in expected_graph_js["vertices"].items():
-                    if value.get('id') == 'test_explicit_dict_loop':
-                        for i in (
-                                "a for apple\n",
-                                "b for boy\n",
-                                "c for cat\n"
-                        ):
-                            self.assertRegex(value.get('text'), i)
-                    else:
-                        self.assertDictEqual(value, actual_graph_js.vertices[key])
-                # self.assertDictEqual(expected_graph_js["vertices"], actual_graph_js.vertices)
-
-                for index, value in enumerate(expected_graph_js['edges']):
-                    self.assertDictEqual(value, actual_graph_js.get_edges()[index])
-                self.assertEqual(expected_graph_js["edges"], actual_graph_js.get_edges())
-
-        def test_rendering_mermaid_js(self):
-            if os.path.exists(self.mermaid_file):
-                ussd_screens = self.journey_store.get(self.journey_name, self.valid_version)
-
-                mermaid_text_format = render_journey_as_mermaid_text(ussd_screens)
-
-                file_content = self.read_file_content(self.mermaid_file)
-
-                expected_text_lines = file_content.split('\n')
-                actual_text_lines = mermaid_text_format.split('\n')
-
-                for index, line in enumerate(expected_text_lines):
-                    self.assertEqual(line, actual_text_lines[index])
-
-                self.assertEqual(mermaid_text_format, file_content)
-
-        def read_file_content(self, file_path):
-            with open(file_path) as f:
-                mermaid_text = f.read()
-            return mermaid_text
-
-        def ussd_session(self, session_id):
-            return SessionStore(session_id, kv_store=self.session_store)
 
         def ussd_client(self, generate_customer_journey=True, **kwargs):
             class UssdTestClient(object):
-                def __init__(self, session_id=None, phone_number=200,
-                             language='en', extra_payload=None, ):
-
-                    if extra_payload is None:
-                        extra_payload = {}
+                def __init__(self, host, session_id=None, phone_number=200,
+                             language='en', extra_payload={},
+                             service_code="test"):
                     self.phone_number = phone_number
                     self.language = language
                     self.session_id = session_id \
                         if session_id is not None \
                         else str(uuid.uuid4())
+                    self.url = host + reverse('africastalking_url')
                     self.extra_payload = extra_payload
+                    self.service_code = service_code
 
-                def send(self, ussd_input, raw=False):
+                def send_(self, ussd_input):
                     payload = {
-                        "session_id": self.session_id,
-                        "ussd_input": ussd_input,
-                        "phone_number": self.phone_number,
-                        "language": self.language,
+                        "sessionId": self.session_id,
+                        "text": ussd_input,
+                        "phoneNumber": self.phone_number,
+                        "serviceCode": self.service_code,
+                        "language": self.language
                     }
                     payload.update(self.extra_payload)
+                    response = requests.post(
+                        url=self.url,
+                        data=payload
+                    )
+                    return response
 
-                    ussd_request = UssdRequest(**payload)
+                def send(self, ussd_input):
+                    return self.send_(ussd_input).content.decode()
 
-                    response = UssdEngine(ussd_request).ussd_dispatcher()
+            if generate_customer_journey:
+                customer_journey_conf = {
+                    'customer_journey_conf': self.valid_yml
+                }
+                kwargs['extra_payload'] = customer_journey_conf
 
-                    if raw:
-                        return response
-                    return str(response)
-
-            customer_journey_conf = {
-                'journey_name': self.journey_name,
-                'journey_version': self.valid_version,
-                "journey_store": self.journey_store
-            }
-
-            if kwargs.get('extra_payload'):
-                customer_journey_conf.update(kwargs['extra_payload'])
-
-            kwargs['extra_payload'] = customer_journey_conf
-
-            return UssdTestClient(**kwargs)
+            return UssdTestClient(self.live_server_url, **kwargs)

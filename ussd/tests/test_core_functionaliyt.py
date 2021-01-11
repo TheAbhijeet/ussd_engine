@@ -1,20 +1,18 @@
-import time
-from collections import OrderedDict
-from datetime import datetime
-
-from unittest import TestCase
-from freezegun import freeze_time
-from ussd import defaults as ussd_airflow_variables
+from django.test import TestCase
 from ussd.core import _registered_ussd_handlers, \
     UssdHandlerAbstract, MissingAttribute, \
-    InvalidAttribute, UssdRequest, convert_error_response_to_mermaid_error
+    InvalidAttribute, UssdRequest, ussd_session
+from rest_framework import serializers
 from ussd.tests import UssdTestCase
+from freezegun import freeze_time
+from datetime import datetime
+import time
+from ussd import defaults as ussd_airflow_variables
 from ussd.utilities import datetime_to_string, string_to_datetime
-from marshmallow import Schema, fields
 
 
-class SampleSerializer(Schema):
-    text = fields.Str(required=True)
+class SampleSerializer(serializers.Serializer):
+    text = serializers.CharField()
 
 
 class TestHandlerRegistration(TestCase):
@@ -41,7 +39,6 @@ class TestHandlerRegistration(TestCase):
             # missing screen_type
             class TestTwo(UssdHandlerAbstract):
                 serializer = SampleSerializer
-
                 def handle(self, req):
                     pass
 
@@ -56,6 +53,7 @@ class TestHandlerRegistration(TestCase):
             # missing validate schema
             class TestFour(UssdHandlerAbstract):
                 screen_type = 'test_four'
+
 
             assert False, "should raise missing attriute name"
         except MissingAttribute:
@@ -73,6 +71,7 @@ class TestHandlerRegistration(TestCase):
                 def handle(self, req):
                     pass
 
+
             assert False, "should raise invalid serializer"
         except InvalidAttribute:
             pass
@@ -82,10 +81,7 @@ class TestUssdRequestCreation(TestCase):
 
     def test(self):
         session_id = '1234'
-        ussd_request = UssdRequest('1234', '200', '', 'en',
-                                   journey_name="sample_journey",
-                                   journey_version="sample_customer_journey.yml"
-                                   )
+        ussd_request = UssdRequest('1234', '200', '', 'en')
 
         self.assertTrue(len(session_id) < 8)
 
@@ -97,10 +93,8 @@ class TestUssdRequestCreation(TestCase):
                           None,
                           '200',
                           '',
-                          'en',
-                          journey_name="sample_journey",
-                          journey_version="sample_customer_journey.yml"
-                          )
+                          'en')
+
 
         # session_id and using custom session_id can't been defined
         self.assertRaises(
@@ -110,9 +104,22 @@ class TestUssdRequestCreation(TestCase):
             "200",
             "",
             "en",
-            use_built_in_session_management=True,
-            journey_name = "sample_journey",
-            journey_version = "sample_customer_journey.yml"
+            use_built_in_session_management=True
+        )
+
+
+class TestCoreView(UssdTestCase.BaseUssdTestCase):
+    validate_ussd = False
+
+    def test_africas_talking_is_picking_settings_journey(self):
+        ussd_client = self.ussd_client(generate_customer_journey=False)
+
+        # dial in
+        response = ussd_client.send('')
+
+        self.assertEqual(
+            "Enter your name\n",
+            response
         )
 
 
@@ -122,9 +129,7 @@ class TestInheritance(UssdTestCase.BaseUssdTestCase):
         return self.ussd_client(
             generate_customer_journey=False,
             extra_payload={
-                'journey_name': "sample_journey",
-                'journey_version': "sample_using_inheritance"
-
+                "customer_journey_conf": "sample_using_inheritance.yml"
             }
         )
 
@@ -245,7 +250,7 @@ class TestInheritance(UssdTestCase.BaseUssdTestCase):
 
         ]
 
-        session = self.ussd_session(ussd_client.session_id)
+        session = ussd_session(ussd_client.session_id)
 
         self.assertEqual(
             session['ussd_interaction'],
@@ -253,9 +258,8 @@ class TestInheritance(UssdTestCase.BaseUssdTestCase):
         )
 
     def testing_valid_customer_journey(self):
-        self.journey_name = "sample_journey"
         self._test_ussd_validation(
-            'sample_using_inheritance',
+            'sample_using_inheritance.yml',
             True,
             {}
         )
@@ -271,10 +275,9 @@ class TestSessionManagement(UssdTestCase.BaseUssdTestCase):
         return self.ussd_client(
             generate_customer_journey=False,
             extra_payload={
-                "use_built_in_session_management": True,
-                'journey_name': "sample_journey",
-                'journey_version': "sample_used_for_testing_session_management",
-                "session_id": None
+                "customer_journey_conf":
+                    "sample_used_for_testing_session_management.yml",
+                "use_built_in_session_management": True
             }
         )
 
@@ -282,28 +285,21 @@ class TestSessionManagement(UssdTestCase.BaseUssdTestCase):
     def _create_ussd_request(phone_number):
         return UssdRequest(None, phone_number, '', 'en',
                            use_built_in_session_management=True,
-                           expiry=2, journey_name='sample_journey',
-                           journey_version='sample_customer_journey.yml')
+                           expiry=1)
 
     def test_session_expiry(self):
         phone_number = 200
         req = self._create_ussd_request(phone_number)
-        req.session['foo'] = 'bar'
-        prev_items = req.session.items()
-        req.session.save()
 
-        # test a new session created within the time session data remains
-        self.assertEqual(req.session['foo'],
-                         self._create_ussd_request(phone_number).session['foo']
+        # test a new session created within the time session id remains
+        self.assertEqual(req.session_id,
+                         self._create_ussd_request(phone_number).session_id
                          )
-        time.sleep(2)
+        time.sleep(1)
 
-        # test after one second a session data has been cleared.
-        new_req = self._create_ussd_request(phone_number)
-        self.assertIsNone(new_req.session.get('foo'))
-        # and previous data stored under another session id
-        self.assertNotEqual(self.ussd_session(new_req.session[ussd_airflow_variables.previous_session_id]),
-                            prev_items
+        # test after one second a new session_id will be created.
+        self.assertNotEqual(req.session_id,
+                            self._create_ussd_request(phone_number).session_id
                             )
 
     def test_session_expiry_using_inactivity(self):
@@ -332,18 +328,20 @@ class TestSessionManagement(UssdTestCase.BaseUssdTestCase):
         # been closed
 
         self.assertEqual(
-            req.session['name'],
-            self._create_ussd_request(phone_number).session['name']
+            req.session_id,
+            self._create_ussd_request(phone_number).session_id
         )
 
-        time.sleep(3)
+        time.sleep(0.3)
 
         # test now the session has been closed
-        self.assertIsNone(
-            self._create_ussd_request(phone_number).session.get('name')
+        self.assertNotEqual(
+            req.session_id,
+            self._create_ussd_request(phone_number).session_id
         )
 
     def test_quit_screen_terminates_session(self):
+
         ussd_client = self.get_client()
 
         self.assertEqual(
@@ -369,6 +367,7 @@ class TestSessionManagement(UssdTestCase.BaseUssdTestCase):
         )
 
     def test_session_expiry_on_ussd(self):
+
         ussd_client = self.get_client()
 
         self.assertEqual(
@@ -385,79 +384,10 @@ class TestSessionManagement(UssdTestCase.BaseUssdTestCase):
         )
 
 
-class TestCommonFunctionality(TestCase):
+class TestDatetimeConversion(TestCase):
 
-    def test_date_time_conversion(self):
+    def test(self):
         now = datetime.now()
         now_str = datetime_to_string(now)
 
         self.assertEqual(now, string_to_datetime(now_str))
-
-    def test_converting_error_response_to_mermaid_error(self):
-        d = OrderedDict()
-        d['e'] = ["e is required", "e is invalid"]
-
-        b = OrderedDict()
-        b['c'] = ['c is invalid']
-        b['d'] = d
-
-        error_response_sample = OrderedDict()
-        error_response_sample['a'] = ["a is invalid"]
-        error_response_sample['b'] = b
-        error_response_sample['f'] = ['f is invalid']
-
-        h = OrderedDict()
-        h['h'] = ["This field is required."]
-        error_response_sample['g'] = h
-
-        j = OrderedDict()
-        j['_schema'] = ["some schema error"]
-        error_response_sample['i'] = j
-
-        unordered_dict = dict(
-            a=["a is invalid"],
-            b=dict(
-                c=["c is invalid"],
-                d=dict(
-                    e=["e is required", "e is invalid"]
-                )
-            ),
-            f=["f is invalid"],
-            g=dict(h=["This field is required."]),
-            i=dict(_schema=["some schema error"])
-        )
-
-        self.assertEqual(error_response_sample, unordered_dict)
-
-        mermaid_error_response = [
-            {
-                "path": ["a"],
-                "message": "a is invalid",
-            },
-            {
-                "path": ["b", "c"],
-                "message": "c is invalid"
-            },
-            {
-                "path": ["b", "d", "e"],
-                "message": "e is required\ne is invalid"
-            },
-            {
-                "path": ["f"],
-                "message": "f is invalid"
-            },
-            {
-                "path": ["g"],
-                "message": "h is required."
-            },
-            {
-                "path": ["i"],
-                "message": "some schema error"
-            }
-        ]
-
-        actual_error = convert_error_response_to_mermaid_error(error_response_sample)
-
-        for index, v in enumerate(mermaid_error_response):
-            self.assertDictEqual(v, actual_error[index])
-        self.assertListEqual(mermaid_error_response, actual_error)

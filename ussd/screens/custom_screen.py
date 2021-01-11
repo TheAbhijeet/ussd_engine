@@ -1,46 +1,34 @@
 from ussd.core import UssdHandlerAbstract, UssdHandlerMetaClass
+from ussd.screens.serializers import UssdBaseSerializer
+from rest_framework import serializers
 from ussd.utilities import str_to_class
-import typing
-from ussd.graph import Link, Vertex
-from ussd.screens.schema import UssdBaseScreenSchema
-from marshmallow import fields, INCLUDE, ValidationError, validates_schema
 
 
-class ScreenObjField(fields.Field):
+class CustomScreenSerializer(UssdBaseSerializer):
+    screen_obj = serializers.CharField(max_length=255)
 
-    def _deserialize(
-        self,
-        value: typing.Any,
-        attr: typing.Optional[str],
-        data: typing.Optional[typing.Mapping[str, typing.Any]],
-        **kwargs
-    ):
+    @staticmethod
+    def validate_screen_obj(value):
         try:
             screen_obj = str_to_class(value)
         except Exception as e:
-            raise ValidationError(str(e))
+            raise serializers.ValidationError(str(e))
         else:
             if not isinstance(screen_obj, UssdHandlerMetaClass):
-                raise ValidationError(
+                raise serializers.ValidationError(
                     "Screen object should be of type UssdHandlerAbstract"
                 )
             return screen_obj
 
-
-class CustomScreenSchema(UssdBaseScreenSchema):
-
-    screen_obj = ScreenObjField(required=True)
-
-    class Meta:
-        unknown = INCLUDE
-
-    @validates_schema
-    def validate_custom_schema(self, data, **kwargs):
+    def validate(self, data):
+        data = super(CustomScreenSerializer, self).validate(data)
         screen_obj = data['screen_obj']
         if hasattr(screen_obj, 'serializer'):
-            schema = screen_obj.serializer(context=self.context)
-            schema.load(data=data)
-
+            validation = screen_obj.serializer(data=self.initial_data,
+                                               context=self.context)
+            if not validation.is_valid():
+                raise serializers.ValidationError(validation.errors)
+        return data
 
 
 class CustomScreen(UssdHandlerAbstract):
@@ -101,35 +89,18 @@ class CustomScreen(UssdHandlerAbstract):
             .. literalinclude:: .././ussd/tests/sample_screen_definition/valid_menu_screen_conf.yml
     """
     screen_type = "custom_screen"
-    serializer = CustomScreenSchema
-
-    def __init__(self, *args, **kwargs):
-        super(CustomScreen, self).__init__(*args, **kwargs)
-        self.custom_screen_instance = str_to_class(
-            self.screen_content['screen_obj']
-        )(
-            self.ussd_request,
-            self.handler,
-            self.screen_content,
-            initial_screen={},
-        )
+    serializer = CustomScreenSerializer
 
     def handle(self):
         # Todo initiate the class in the core. to avoid double changing
         # if the parameter changes.
 
         # calling the custom screen handler method
-        return self.custom_screen_instance.handle()
-
-    def show_ussd_content(self, **kwargs):
-        if self.custom_screen_instance.__class__.__dict__.get('show_ussd_content'):
-            return self.custom_screen_instance.show_ussd_content()
-        return "custom_screen\n{}".format(self.screen_content['screen_obj'])
-
-    def get_next_screens(self) -> typing.List[Link]:
-        if self.custom_screen_instance.__class__.__dict__.get('get_next_screens'):
-            return self.custom_screen_instance.get_next_screens()
-        return [
-            Link(Vertex(self.handler),
-                 Vertex(self.screen_content['next_screen']),
-                 self.screen_content['input_identifier'])]
+        return str_to_class(
+            self.screen_content['screen_obj']
+        )(
+            self.ussd_request,
+            self.handler,
+            self.screen_content,
+            initial_screen={},
+        ).handle()

@@ -1,8 +1,9 @@
 from ussd.core import UssdHandlerAbstract
-from ussd.graph import Link, Vertex
-from ussd.screens.schema import UssdBaseScreenSchema, NextUssdScreenSchema
+from ussd.screens.serializers import UssdBaseSerializer, \
+    NextUssdScreenSerializer
+from rest_framework import serializers
 from ussd.tests import UssdTestCase
-from marshmallow import fields, INCLUDE
+from ussd.core import UssdResponse
 
 
 class InvalidCustomHandler(object):
@@ -11,28 +12,19 @@ class InvalidCustomHandler(object):
 
 class SampleCustomHandler1(UssdHandlerAbstract):
     abstract = True  # don't register custom classes
-
     @staticmethod
     def show_ussd_content():  # This method doesn't have to be static
         # Do anything custom here.
-        return "This is a custom Handler1"
+        return UssdResponse("This is a custom Handler1")
 
     def handle_ussd_input(self, ussd_input):
         # Do anything custom here
         print(ussd_input)  # pep 8 for the sake of using it.
         return self.ussd_request.forward('custom_screen_2')
 
-    def get_next_screens(self):
-        return [
-            Link(Vertex(self.handler), Vertex('custom_screen_2'), "")
-        ]
 
-
-class SampleSerializer(UssdBaseScreenSchema, NextUssdScreenSchema):
-    input_identifier = fields.Str(required=True)
-
-    class Meta:
-        unknown = INCLUDE
+class SampleSerializer(UssdBaseSerializer, NextUssdScreenSerializer):
+        input_identifier = serializers.CharField(max_length=100)
 
 
 class SampleCustomHandlerWithSerializer(UssdHandlerAbstract):

@@ -1,23 +1,20 @@
 from ussd.core import UssdHandlerAbstract
+from ussd.screens.serializers import NextUssdScreenSerializer
+from rest_framework import serializers
 from ussd.tasks import http_task
-import json
-from ussd.graph import Link, Vertex
-from marshmallow import Schema, fields, validate, INCLUDE
-from ussd.screens.schema import UssdBaseScreenSchema, NextUssdScreenSchema
 
 
-class HttpScreenConfSchema(Schema):
-    method = fields.Str(required=True, validate=validate.OneOf(("post", "get", "put", "delete")))
-    url = fields.Str(required=True)
+class HttpScreenConfSerializer(serializers.Serializer):
+    method = serializers.ChoiceField(
+        ("post", "get", "put", "delete")
+    )
+    url = serializers.CharField(max_length=255)
 
-    class Meta:
-        unknown = INCLUDE
 
-
-class HttpScreenSchema(UssdBaseScreenSchema, NextUssdScreenSchema):
-    session_key = fields.Str(required=True)
-    synchronous = fields.Bool(required=False)
-    http_request = fields.Nested(HttpScreenConfSchema, required=True)
+class HttpScreenSerializer(NextUssdScreenSerializer):
+    session_key = serializers.CharField()
+    synchronous = serializers.BooleanField(required=False)
+    http_request = HttpScreenConfSerializer()
 
 
 class HttpScreen(UssdHandlerAbstract):
@@ -60,7 +57,7 @@ class HttpScreen(UssdHandlerAbstract):
         .. literalinclude:: .././ussd/tests/sample_screen_definition/valid_http_screen_conf.yml
     """
     screen_type = "http_screen"
-    serializer = HttpScreenSchema
+    serializer = HttpScreenSerializer
 
     def handle(self):
         http_request_conf = self.render_request_conf(
@@ -78,15 +75,3 @@ class HttpScreen(UssdHandlerAbstract):
                 logger=self.logger
             )
         return self.route_options()
-
-    def show_ussd_content(self, **kwargs):
-        results = "http_screen\n{}".format(json.dumps(self.screen_content['http_request'],
-                                                   indent=2, sort_keys=True))
-        results = results.replace('"', "'")
-        return results
-
-    def get_next_screens(self):
-        return [
-            Link(Vertex(self.handler), Vertex(self.screen_content['next_screen']),
-                 self.screen_content['session_key'])
-        ]

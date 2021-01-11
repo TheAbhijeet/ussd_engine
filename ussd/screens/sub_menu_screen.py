@@ -98,7 +98,7 @@ class MenuOption(object):
         self.index_value = index_value or self.index_display
 
 
-class MenuScreen(UssdHandlerAbstract):
+class SubMenuScreen(UssdHandlerAbstract):
     """
     This is the screen used to display options to select:
 
@@ -129,7 +129,7 @@ class MenuScreen(UssdHandlerAbstract):
                 .. code-block:: yaml
 
                     menu_screen_with_item_example:
-                        type: menu_screen
+                        type: sub_menu_screen
                         text: choose one item
                         items:
                             text: "{{key}} for {{value}}"
@@ -167,11 +167,11 @@ class MenuScreen(UssdHandlerAbstract):
     Example:
         .. literalinclude:: .././ussd/tests/sample_screen_definition/valid_menu_screen_conf.yml
     """
-    screen_type = "menu_screen"
+    screen_type = "sub_menu_screen"
     serializer = MenuScreenSerializer
 
     def __init__(self, *args, **kwargs):
-        super(MenuScreen, self).__init__(*args, **kwargs)
+        super(SubMenuScreen, self).__init__(*args, **kwargs)
         self.list_options = [] if self.screen_content.get('items') is None \
             else self.get_items()
         self.menu_options = [] if self.screen_content.get('options') is None \
@@ -211,6 +211,9 @@ class MenuScreen(UssdHandlerAbstract):
                     back_option=self.pagination_back_option)
             text += "98. {more_option}".format(
                 more_option=self.pagination_more_option
+            )
+            text += "#. {home_option}".format(
+                home_option=self.pagination_home_option
             )
 
             # update ussd_text_limit to the one that considers pages
@@ -253,6 +256,12 @@ class MenuScreen(UssdHandlerAbstract):
                                            self.pagination_more_option) \
             if len(ussd_text_cadidate) > self.get_text_limit() - len(text) \
             else ''
+
+        text += "#. {home_option}".format(home_option=
+                                           self.pagination_home_option) \
+            if len(ussd_text_cadidate) > self.get_text_limit() - len(text) \
+            else ''
+
         if len(ussd_text_cadidate) <= self.get_text_limit() - len(text):
             ussd_text = ussd_text + options[0].text
         else:
