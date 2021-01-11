@@ -93,6 +93,58 @@ class MenuScreen(object):
     """
 
 
+class SubMenuScreen(object):
+    """
+    This screen contains text and list of options to select from
+    and input field.
+
+    The user is supposed to select one of the options provided.
+    each option should have next ussd screen to direct to.
+
+    The user will be getting one Back to home option if this screen type
+    selected.
+
+    This is screen is created by hitting this view with the following
+    fields:
+
+    * text
+        *type*: string
+
+        *description*:  representing whats going to be displayed to the user.
+
+    * menu_options
+        *type*: dict
+            contain the following content
+
+            * menu_text
+                *type*: string
+
+                *description*: this is text going to be displayed when showing options
+
+            * menu_input
+                *type*: string or int
+
+                *description*: this is value the user is going to select when choosing
+                a option
+
+            * menu_index
+                *type*: int -> its optional if menu_input is a int
+
+                *description*: Menu options displayed to users are
+                arranged depending on this field
+
+                *constrain*: menu_index should be unique per each screen.
+                you can't have two menu options with the same menu_index
+
+            * next_ussd_screen
+                *type*: int -> this should be an int representing the pk of an
+                 existing ussd screen
+
+                *description*:  represents the next screen to navigate to if
+                user enters input
+    """
+
+
 class ListScreen(object):
     """
     This screen contains text and list of options to select from
