@@ -286,6 +286,12 @@ class SubMenuScreen(UssdHandlerAbstract):
                 self.ussd_request.session['_ussd_state']['page'] = \
                     new_page_number
                 return UssdResponse(self._render_django_page(new_page_number))
+            # Restart page object from begining
+            if self.ussd_request.input.strip() == "98" and page.has_next() == False:
+                new_page_number = 1
+                self.ussd_request.session['_ussd_state']['page'] = \
+                    new_page_number
+                return UssdResponse(self._render_django_page(new_page_number))
             elif self.ussd_request.input.strip() == '00' and \
                     page.has_previous():
                 new_page_number = page.previous_page_number()
