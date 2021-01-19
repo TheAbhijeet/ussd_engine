@@ -251,17 +251,17 @@ class SubMenuScreen(UssdHandlerAbstract):
             return pages
 
         ussd_text_cadidate = ussd_text + options[0].text
-        # detect if there might be more optoins
+        
+        text += "#. {home_option}".format(
+            home_option=self.pagination_home_option)
+
+        # detect if there are more options
         text += "98. {more_option}".format(more_option=
                                            self.pagination_more_option) \
             if len(ussd_text_cadidate) > self.get_text_limit() - len(text) \
             else ''
 
-        text += "#. {home_option}".format(home_option=
-                                           self.pagination_home_option) \
-            if len(ussd_text_cadidate) > self.get_text_limit() - len(text) \
-            else ''
-
+         
         if len(ussd_text_cadidate) <= self.get_text_limit() - len(text):
             ussd_text = ussd_text + options[0].text
         else:
