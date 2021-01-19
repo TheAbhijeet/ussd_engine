@@ -212,9 +212,9 @@ class SubMenuScreen(UssdHandlerAbstract):
             text += "98. {more_option}".format(
                 more_option=self.pagination_more_option
             )
-            text += "#. {home_option}".format(
-                home_option=self.pagination_home_option
-            )
+            # text += "#. {home_option}".format(
+            #     home_option=self.pagination_home_option
+            # )
 
             # update ussd_text_limit to the one that considers pages
             ussd_text_limit = ussd_text_limit - len(text) - 1
@@ -257,10 +257,10 @@ class SubMenuScreen(UssdHandlerAbstract):
             if len(ussd_text_cadidate) > self.get_text_limit() - len(text) \
             else ''
 
-        text += "#. {home_option}".format(home_option=
-                                           self.pagination_home_option) \
-            if len(ussd_text_cadidate) > self.get_text_limit() - len(text) \
-            else ''
+        # text += "#. {home_option}".format(home_option=
+        #                                    self.pagination_home_option) \
+        #     if len(ussd_text_cadidate) > self.get_text_limit() - len(text) \
+        #     else ''
 
         if len(ussd_text_cadidate) <= self.get_text_limit() - len(text):
             ussd_text = ussd_text + options[0].text
