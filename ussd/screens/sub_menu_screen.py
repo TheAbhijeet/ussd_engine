@@ -230,7 +230,10 @@ class SubMenuScreen(UssdHandlerAbstract):
             ussd_title = self._add_end_line(' '.join(ussd_text_subsets[1:]))
 
         self.paginate_options(ussd_title, pages, self.options[:])
-
+        #Remove empty pages with just home and back button
+        if pages[-1] == '#. Home.\n00. Back\n':
+            pages.pop()
+            pages[0] = pages[0].replace('98. More\n', '')
         return Paginator(pages, 1)
 
     def paginate_options(self, ussd_text, pages, options):
@@ -251,7 +254,7 @@ class SubMenuScreen(UssdHandlerAbstract):
             return pages
 
         ussd_text_cadidate = ussd_text + options[0].text
-        
+
         text += "#. {home_option}".format(
             home_option=self.pagination_home_option)
 
