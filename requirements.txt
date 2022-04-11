@@ -8,7 +8,7 @@ codacy-coverage==1.2.18
 freezegun==0.3.11
 setuptools>=27
 boto3==1.16.63
-awscli==1.22.90
+awscli==1.18.223
 ipdb==0.13.9
 twine==1.15.0
 # using mwaaas branch here as we wait for this pull request to be merged
