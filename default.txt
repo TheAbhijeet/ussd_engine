@@ -7,6 +7,8 @@ PyYaml==5.1.2
 PyStaticConfiguration>=0.10.2
 requests>=2.12.3
 celery>=4.0.0rc3
-PyConfigure>=0.5.9
+#PyConfigure>=0.5.9
+# Using this fork until this gets merged https://github.com/alfred82santa/configure/pull/5
+git+https://github.com/TheAbhijeet/configure.git@2d3dce73d7acab7ac01016ec633fb4019c62b0e9
 attrs==18.2.0
 marshmallow>=3.3.0
