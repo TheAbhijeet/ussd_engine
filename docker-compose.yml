@@ -99,7 +99,7 @@ services:
       - "traefik.enable=false"
 
   documentation:
-    image: python:3.3.6-alpine
+    image: python:3.10.4-alpine
     depends_on:
       - compile_documentation
     working_dir: /usr/src/app/docs/_build/html
