@@ -1,7 +1,7 @@
 -r default.txt
 gunicorn==19.6.0
 sphinx==1.5.1
-sphinx-autobuild==2021.3.14
+sphinx-autobuild==0.7.1
 sphinx_rtd_theme==0.1.9
 coverage==4.1
 codacy-coverage==1.2.18
