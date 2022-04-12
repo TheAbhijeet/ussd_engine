@@ -44,6 +44,8 @@ setup(
     packages=find_packages(exclude=('ussd_airflow',)),
     url='https://github.com/ussd-airflow/ussd_engine',
     install_requires=reqs('default.txt'),
+    # Using this fork until this gets merged https://github.com/alfred82santa/configure/pull/5
+    dependency_links=['https://github.com/TheAbhijeet/configure/archive/refs/tags/0.6.tar.gz#egg=configure-fork'],
     include_package_data=True,
     license='MIT',
     author='Mwas',
