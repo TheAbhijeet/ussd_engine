@@ -10,4 +10,5 @@ celery>=4.0.0rc3
 # PyConfigure>=0.5.9
 attrs==18.2.0
 marshmallow>=3.3.0
-configure-fork>=0.7
+# Using this fork until this gets merged https://github.com/alfred82santa/configure/pull/5
+configure-fork @ https://github.com/TheAbhijeet/configure/archive/refs/tags/0.7.tar.gz#egg=configure-fork-0.7
